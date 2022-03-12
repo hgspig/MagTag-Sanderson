@@ -22,24 +22,41 @@ hdr = {
 }
 try:
     response = magtag.network.fetch(site, headers=hdr )
-    content = response.text
 
     r = re.compile('>\s*([^<]+?)\s*<span\s+class="vc_label_units">\s*(\d+)%\s*<')
-    while True:
-        m = r.search(content)
-        if m == None:
+    content = ""
+    found = False
+
+    for chunk in response.iter_content(1024):
+        if not chunk:
             break
 
-        # print("matches",
-        #     # len(response.text), m, m.span(0), m.start(0), m.end(0), 
-        #     m.groups()[0], " <<<>>> ",
-        #     m.groups()[1], " <<<>>> ",
-        #     # response.text[m.start(0):m.end(0)], " <<<>>> ",
-        #     # response.text[m.start(1):m.end(1)], " <<<>>> ",
-        #     # response.text[m.start(2):m.end(2)]
-        # )
-        percentages.append((m.groups()[0], m.groups()[1]))
-        content = content[m.end(0):]
+        content += chunk.decode('utf-8')
+        if len(content) < 16384:
+            continue
+
+        if found and r.search(content) == None:
+            break
+
+        while True:
+            m = r.search(content)
+
+            if m == None:
+                content = content[1024:]
+                break
+
+            # print("matches",
+            #     # len(response.text), m, m.span(0), m.start(0), m.end(0),
+            #     m.groups()[0], " <<<>>> ",
+            #     m.groups()[1], " <<<>>> ",
+            #     # response.text[m.start(0):m.end(0)], " <<<>>> ",
+            #     # response.text[m.start(1):m.end(1)], " <<<>>> ",
+            #     # response.text[m.start(2):m.end(2)]
+            # )
+
+            found = True
+            percentages.append((m.groups()[0], m.groups()[1]))
+            content = content[m.end(0):]
 
 except RuntimeError as e:
     print(e)
